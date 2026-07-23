@@ -1,6 +1,0 @@
-{
-  "name": "تطبيق سياحة وحجوزات Pi Network",
-  "description": "منصة سياحية متكاملة تتيح لأصحاب الفنادق والمطاعم نشر إعلاناتهم مجاناً، وتمكن السياح من تصفح العروض والحجز والدفع الفوري باستخدام عملة Pi Network مع محاكاة كاملة للمحفظة والتحقق من المعاملة.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
