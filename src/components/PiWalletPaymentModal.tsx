@@ -43,6 +43,16 @@ export default function PiWalletPaymentModal({
     timestamp?: string;
   } | null>(null);
 
+  const [copiedLink, setCopiedLink] = useState(false);
+  const isPiBrowser = typeof navigator !== 'undefined' && /PiBrowser/i.test(navigator.userAgent);
+
+  const handleCopyAppLink = () => {
+    const currentUrl = window.location.href;
+    navigator.clipboard.writeText(currentUrl).then(() => {
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 3000);
+    });
+  };
   const guestsCount = bookingDetails?.guests || 1;
   const bookingDate = bookingDetails?.date || new Date().toISOString().split('T')[0];
   const totalPrice = parseFloat((listing.price * guestsCount).toFixed(2));
@@ -311,6 +321,34 @@ export default function PiWalletPaymentModal({
         {step === 'form' && (
           <form onSubmit={handleInitiatePayment} className="space-y-4 text-xs">
             
+            {/* Pi Browser Linking Notice Banner */}
+            <div className="bg-gradient-to-r from-amber-50 to-purple-50 p-3 rounded-2xl border border-amber-200/80 space-y-2 text-[11px]">
+              <div className="flex items-center justify-between text-amber-900 font-extrabold">
+                <span className="flex items-center gap-1.5">
+                  <Coins className="h-4 w-4 text-pi-gold" />
+                  {isPiBrowser ? 'متصل عبر متصفح Pi Browser الرسمي' : 'ربط التطبيق مع Pi Browser'}
+                </span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isPiBrowser ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-200 text-amber-900'}`}>
+                  {isPiBrowser ? 'Pi Browser Active' : 'External Web Browser'}
+                </span>
+              </div>
+              <p className="text-gray-600 leading-relaxed">
+                {isPiBrowser 
+                  ? 'يتم الربط والدفع مباشرة مع محفظتك في تطبيق Pi Browser.'
+                  : 'لتجربة الدفع الحقيقي التفاعلي، يفضل فتح هذا الرابط داخل تطبيق Pi Browser الرسمي.'}
+              </p>
+              {!isPiBrowser && (
+                <button
+                  type="button"
+                  onClick={handleCopyAppLink}
+                  className="w-full bg-white hover:bg-amber-50 border border-amber-300 text-amber-900 font-bold py-1.5 px-3 rounded-xl flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                >
+                  <Sparkles className="h-3.5 w-3.5 text-pi-gold" />
+                  <span>{copiedLink ? 'تم نسخ رابط التطبيق بنجاح! 📋' : 'نسخ رابط التطبيق لفتحه داخل Pi Browser'}</span>
+                </button>
+              )}
+            </div>
+
             {/* Service & Price Summary Box */}
             <div className="bg-purple-50/70 p-3.5 rounded-2xl border border-purple-100 space-y-2">
               <div className="flex items-center justify-between">
