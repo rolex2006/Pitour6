@@ -13,6 +13,18 @@ async function startServer() {
   let serverBookings: any[] = [];
   let serverPayments: Record<string, any> = {};
 
+  // Check Pi Network environment key configuration
+  app.get("/api/pi/config-status", (req, res) => {
+    const piApiKey = process.env.PI_API_KEY || process.env.PI_SERVER_API_KEY || process.env.PI_API_SECRET;
+    const piWalletSeed = process.env.PI_WALLET_PRIVATE_SEED || process.env.PI_SEED;
+    return res.json({
+      hasApiKey: !!piApiKey,
+      hasWalletSeed: !!piWalletSeed,
+      network: "testnet",
+      endpoints: ["/api/payments/approve", "/api/payments/complete"]
+    });
+  });
+
   // API route for Pi payment approval (onReadyForServerApproval callback)
   app.post("/api/payments/approve", async (req, res) => {
     try {
@@ -32,15 +44,18 @@ async function startServer() {
         approvedAt: new Date().toISOString(),
       };
 
-      // If Pi Platform API key is available, send approval request to Pi Network API
-      const piApiKey = process.env.PI_API_KEY;
+      // Check for Pi Platform API Key in environment
+      const piApiKey = process.env.PI_API_KEY || process.env.PI_SERVER_API_KEY || process.env.PI_API_SECRET;
+      
       if (piApiKey) {
+        console.log(`[Pi Payment Server] Calling Pi Platform API: POST https://api.minepi.com/v2/payments/${paymentId}/approve`);
         const piResponse = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/approve`, {
           method: 'POST',
           headers: {
             'Authorization': `Key ${piApiKey}`,
             'Content-Type': 'application/json'
-          }
+          },
+          body: JSON.stringify({})
         });
 
         if (!piResponse.ok) {
@@ -49,12 +64,18 @@ async function startServer() {
           serverPayments[paymentId].status = "APPROVAL_FAILED";
           return res.status(400).json({ error: "Pi Platform API approval failed", details: errText });
         }
+
+        const piData = await piResponse.json().catch(() => ({}));
+        console.log("[Pi Payment Server] Pi Platform API approval successful:", piData);
+        serverPayments[paymentId].piData = piData;
+      } else {
+        console.warn("[Pi Payment Server] PI_API_KEY not found in environment. Proceeding with local state approval.");
       }
 
       return res.json({ success: true, paymentId, status: "APPROVED" });
     } catch (err: any) {
       console.error("[Pi Payment Server] Approval error:", err);
-      return res.status(500).json({ error: "Internal server approval error" });
+      return res.status(500).json({ error: "Internal server approval error", details: err.message });
     }
   });
 
@@ -68,9 +89,10 @@ async function startServer() {
         return res.status(400).json({ error: "paymentId and txid are required" });
       }
 
-      // If Pi Platform API key is available, send completion request to Pi Network API
-      const piApiKey = process.env.PI_API_KEY;
+      const piApiKey = process.env.PI_API_KEY || process.env.PI_SERVER_API_KEY || process.env.PI_API_SECRET;
+
       if (piApiKey) {
+        console.log(`[Pi Payment Server] Calling Pi Platform API: POST https://api.minepi.com/v2/payments/${paymentId}/complete`);
         const piResponse = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/complete`, {
           method: 'POST',
           headers: {
@@ -86,6 +108,12 @@ async function startServer() {
           if (serverPayments[paymentId]) serverPayments[paymentId].status = "COMPLETION_FAILED";
           return res.status(400).json({ error: "Pi Platform API completion failed", details: errText });
         }
+
+        const piData = await piResponse.json().catch(() => ({}));
+        console.log("[Pi Payment Server] Pi Platform API completion successful:", piData);
+        if (serverPayments[paymentId]) serverPayments[paymentId].piData = piData;
+      } else {
+        console.warn("[Pi Payment Server] PI_API_KEY not found in environment. Proceeding with local state completion.");
       }
 
       // Update payment record in memory
@@ -120,7 +148,7 @@ async function startServer() {
       });
     } catch (err: any) {
       console.error("[Pi Payment Server] Completion error:", err);
-      return res.status(500).json({ error: "Internal server completion error" });
+      return res.status(500).json({ error: "Internal server completion error", details: err.message });
     }
   });
 
