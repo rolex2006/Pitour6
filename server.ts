@@ -11,19 +11,122 @@ async function startServer() {
   // Memory store for sync
   let serverListings: any[] = [];
   let serverBookings: any[] = [];
+  let serverPayments: Record<string, any> = {};
 
-  // API route for Pi payment approval
-  app.post("/api/payments/approve", (req, res) => {
-    const { paymentId } = req.body;
-    console.log("Approving Pi payment:", paymentId);
-    return res.json({ success: true, paymentId, status: "APPROVED" });
+  // API route for Pi payment approval (onReadyForServerApproval callback)
+  app.post("/api/payments/approve", async (req, res) => {
+    try {
+      const { paymentId, bookingId, amount } = req.body;
+      console.log("[Pi Payment Server] Approving payment:", paymentId, "for booking:", bookingId);
+
+      if (!paymentId) {
+        return res.status(400).json({ error: "paymentId is required" });
+      }
+
+      // Record payment status in server memory
+      serverPayments[paymentId] = {
+        paymentId,
+        bookingId,
+        amount,
+        status: "APPROVED",
+        approvedAt: new Date().toISOString(),
+      };
+
+      // If Pi Platform API key is available, send approval request to Pi Network API
+      const piApiKey = process.env.PI_API_KEY;
+      if (piApiKey) {
+        const piResponse = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/approve`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Key ${piApiKey}`,
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (!piResponse.ok) {
+          const errText = await piResponse.text();
+          console.error("[Pi Payment Server] Pi Platform API approval error:", errText);
+          serverPayments[paymentId].status = "APPROVAL_FAILED";
+          return res.status(400).json({ error: "Pi Platform API approval failed", details: errText });
+        }
+      }
+
+      return res.json({ success: true, paymentId, status: "APPROVED" });
+    } catch (err: any) {
+      console.error("[Pi Payment Server] Approval error:", err);
+      return res.status(500).json({ error: "Internal server approval error" });
+    }
   });
 
-  // API route for Pi payment completion
-  app.post("/api/payments/complete", (req, res) => {
-    const { paymentId, txid } = req.body;
-    console.log("Completing Pi payment:", paymentId, txid);
-    return res.json({ success: true, paymentId, txid, status: "COMPLETED" });
+  // API route for Pi payment completion (onReadyForServerCompletion callback)
+  app.post("/api/payments/complete", async (req, res) => {
+    try {
+      const { paymentId, txid, bookingId, amount } = req.body;
+      console.log("[Pi Payment Server] Completing payment:", paymentId, "TxID:", txid, "for booking:", bookingId);
+
+      if (!paymentId || !txid) {
+        return res.status(400).json({ error: "paymentId and txid are required" });
+      }
+
+      // If Pi Platform API key is available, send completion request to Pi Network API
+      const piApiKey = process.env.PI_API_KEY;
+      if (piApiKey) {
+        const piResponse = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/complete`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Key ${piApiKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ txid })
+        });
+
+        if (!piResponse.ok) {
+          const errText = await piResponse.text();
+          console.error("[Pi Payment Server] Pi Platform API completion error:", errText);
+          if (serverPayments[paymentId]) serverPayments[paymentId].status = "COMPLETION_FAILED";
+          return res.status(400).json({ error: "Pi Platform API completion failed", details: errText });
+        }
+      }
+
+      // Update payment record in memory
+      serverPayments[paymentId] = {
+        ...(serverPayments[paymentId] || {}),
+        paymentId,
+        txid,
+        bookingId,
+        amount,
+        status: "COMPLETED",
+        completedAt: new Date().toISOString(),
+      };
+
+      // Update associated booking in server store if present
+      if (bookingId) {
+        const existingBookingIndex = serverBookings.findIndex((b: any) => b.id === bookingId);
+        if (existingBookingIndex !== -1) {
+          serverBookings[existingBookingIndex].status = "paid";
+          serverBookings[existingBookingIndex].paymentStatus = "completed";
+          serverBookings[existingBookingIndex].txHash = txid;
+          serverBookings[existingBookingIndex].paymentId = paymentId;
+          serverBookings[existingBookingIndex].paidAt = new Date().toISOString();
+        }
+      }
+
+      return res.json({
+        success: true,
+        paymentId,
+        txid,
+        status: "COMPLETED",
+        timestamp: new Date().toISOString()
+      });
+    } catch (err: any) {
+      console.error("[Pi Payment Server] Completion error:", err);
+      return res.status(500).json({ error: "Internal server completion error" });
+    }
+  });
+
+  // Get payments list API
+  app.get("/api/payments", (req, res) => {
+    return res.json(Object.values(serverPayments));
   });
 
   // API route for listings

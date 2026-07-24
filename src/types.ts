@@ -62,7 +62,11 @@ export interface Booking {
   platformFee: number; // Pi commission
   providerAmount: number; // Pi net to provider
   status: 'paid' | 'pending' | 'cancelled' | 'completed';
-  txHash: string;
+  paymentStatus?: 'pending_payment' | 'approved' | 'completed' | 'cancelled' | 'failed';
+  paymentId?: string;
+  txHash: string; // Testnet or Mainnet transaction ID
+  network?: 'testnet' | 'mainnet';
+  paidAt?: string;
   createdAt: string;
 }
 
