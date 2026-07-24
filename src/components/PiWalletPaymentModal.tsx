@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Listing, Booking, PlatformSettings } from '../types';
 import { Coins, ShieldCheck, Sparkles, CheckCircle2, X, Loader2, AlertTriangle, ArrowRight, Wallet, Check } from 'lucide-react';
-import { PI_CONFIG, initPiSDK, approvePaymentOnServer, completePaymentOnServer } from '../lib/piNetwork';
+import { PI_CONFIG, initPiSDK, authenticatePiUser, approvePaymentOnServer, completePaymentOnServer } from '../lib/piNetwork';
 
 interface PiWalletPaymentModalProps {
   listing: Listing | null;
@@ -103,6 +103,10 @@ export default function PiWalletPaymentModal({
     // Check if official Pi SDK createPayment is available
     if (PiObj && typeof PiObj.createPayment === 'function') {
       try {
+        // Ensure user has granted 'payments' permission before creating payment
+        console.log('[Pi Testnet SDK] Ensuring payments scope permission via authenticatePiUser...');
+        await authenticatePiUser();
+
         await PiObj.createPayment(
           {
             amount: booking.totalPrice,

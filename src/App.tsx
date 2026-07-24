@@ -10,7 +10,7 @@ import ProviderDashboard from './components/ProviderDashboard';
 import AdminDashboard from './components/AdminDashboard';
 import MapViewComponent from './components/MapViewComponent';
 import NotificationsModal from './components/NotificationsModal';
-import { PI_CONFIG, initPiSDK } from './lib/piNetwork';
+import { PI_CONFIG, initPiSDK, authenticatePiUser } from './lib/piNetwork';
 import { 
   Compass, Calendar, Building, Search, MapPin, Sparkles, 
   Coins, ShieldCheck, Users, Menu, X, Heart, Bell, Globe, 
@@ -126,8 +126,7 @@ export default function App() {
     try {
       const PiObj = (window as any).Pi;
       if (PiObj && typeof PiObj.authenticate === 'function') {
-        initPiSDK();
-        const authResult = await PiObj.authenticate(['username'], (p: any) => console.log('Incomplete payment:', p));
+        const authResult = await authenticatePiUser();
         if (authResult?.user) {
           setPiUser(authResult.user);
           localStorage.setItem('pi_user', JSON.stringify(authResult.user));
