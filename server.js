@@ -13,8 +13,80 @@ const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 
-// Memory store for sync
-let serverListings = [];
+// In-memory data store for listings & bookings
+let serverListings = [
+  {
+    id: "tour-1",
+    title: "جولة الأهرامات وأبو الهول الملكية الخاصة",
+    category: "Guided Tours",
+    location: "الجيزة، مصر",
+    rating: 4.9,
+    reviewsCount: 128,
+    price: 15,
+    usdPrice: 450,
+    imageUrl: "https://images.unsplash.com/photo-1503177119275-0aa32b3a9368?auto=format&fit=crop&w=800&q=80",
+    description: "جولة خاصة فاخرة إلى أهرامات الجيزة العظيمة، تمثال أبو الهول، ومعبد الوادي مع مرشد سياحي مصري معتمد.",
+    hostName: "Pyramid Elite Tours",
+    hostVerified: true
+  },
+  {
+    id: "tour-2",
+    title: "رحلة يخت فاخر في البحر الأحمر والغوص",
+    category: "Cruises & Boats",
+    location: "الغردقة، مصر",
+    rating: 4.85,
+    reviewsCount: 94,
+    price: 10,
+    usdPrice: 300,
+    imageUrl: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=800&q=80",
+    description: "رحلة يوم كامل على يخت VIP حول جزيرة جفتون، تشمل الغوص بين الشعاب المرجانية، وجبة غداء فاخرة، والتوصيل من الفندق.",
+    hostName: "Red Sea Captains",
+    hostVerified: true
+  },
+  {
+    id: "tour-3",
+    title: "سفاري الصحراء مع العشاء البدوي وقيادة البيتش باجي",
+    category: "Desert Safari",
+    location: "دبي والغردقة",
+    rating: 4.95,
+    reviewsCount: 210,
+    price: 8,
+    usdPrice: 240,
+    imageUrl: "https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?auto=format&fit=crop&w=800&q=80",
+    description: "مغامرة تشويق عبر الكثبان الرملية الذهبية، قيادة الدراجات الرباعية، تليها حفلة شواء بدوية تقليدية ورصد النجوم.",
+    hostName: "Sahara Adventures",
+    hostVerified: true
+  },
+  {
+    id: "tour-4",
+    title: "منطاد شروق الشمس فوق معابد الأقصر ووادي الملوك",
+    category: "Historical Sites",
+    location: "الأقصر، مصر",
+    rating: 4.92,
+    reviewsCount: 175,
+    price: 12,
+    usdPrice: 360,
+    imageUrl: "https://images.unsplash.com/photo-1568322445389-f64ac2515020?auto=format&fit=crop&w=800&q=80",
+    description: "تحليق ساحر فوق متحف الأقصر المفتوح مع شروق الشمس، ثم استكشاف مقبرة توت عنخ آمون مع مرشد متخصص.",
+    hostName: "Nile Sunrise Flyers",
+    hostVerified: true
+  },
+  {
+    id: "tour-5",
+    title: "فيلا فاخرة مطلة على النيل وسبا صحي 5 نجوم",
+    category: "Hotels & Villas",
+    location: "أسوان، مصر",
+    rating: 4.88,
+    reviewsCount: 82,
+    price: 25,
+    usdPrice: 750,
+    imageUrl: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=800&q=80",
+    description: "فيلا خاصة فاخرة تطل مباشرة على جزيرة الفنتين مع حمام سباحة إنفينيتي، نادل خاص، وباقة سبا استجمام.",
+    hostName: "Nubian Haven Resorts",
+    hostVerified: true
+  }
+];
+
 let serverBookings = [];
 let serverPayments = {};
 
@@ -153,12 +225,12 @@ app.post("/api/payments/complete", async (req, res) => {
   }
 });
 
-// Get payments list API
+// API route to fetch payments
 app.get("/api/payments", (req, res) => {
   return res.json(Object.values(serverPayments));
 });
 
-// API route for listings
+// API routes for listings
 app.get("/api/listings", (req, res) => {
   return res.json(serverListings);
 });
@@ -172,7 +244,7 @@ app.post("/api/listings", (req, res) => {
   return res.json({ success: true, count: serverListings.length });
 });
 
-// API route for bookings
+// API routes for bookings
 app.get("/api/bookings", (req, res) => {
   return res.json(serverBookings);
 });
@@ -186,7 +258,7 @@ app.post("/api/bookings", (req, res) => {
   return res.json({ success: true, count: serverBookings.length });
 });
 
-// API route for Pi authentication validation
+// API route for Pi user authentication validation
 app.post("/api/authenticate-pi", async (req, res) => {
   try {
     const { accessToken } = req.body;
@@ -210,16 +282,14 @@ app.post("/api/authenticate-pi", async (req, res) => {
   }
 });
 
-// Serve compiled static bundle from dist/ or root index.html
-app.use(express.static(path.join(__dirname, "dist")));
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "dist", "index.html"), (err) => {
-    if (err) {
-      res.sendFile(path.join(__dirname, "index.html"));
-    }
-  });
+// Serve index.html directly from root folder
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "index.html"));
 });
 
+// Static assets fallback
+app.use(express.static(__dirname));
+
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`Pi Tour Platform Server running on http://0.0.0.0:${PORT}`);
+  console.log(`Pi Tour Explorer Server running on http://0.0.0.0:${PORT}`);
 });
