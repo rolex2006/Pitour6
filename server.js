@@ -502,7 +502,7 @@ app.post("/api/authenticate-pi", async (req, res) => {
 
 // Serve Pi App Domain Validation Key
 app.get("/validation-key.txt", (req, res) => {
-  const key = process.env.PI_VALIDATION_KEY || "4caa7997b9fe6f80279c19f54b4a6540";
+  const key = process.env.PI_VALIDATION_KEY || "4caa7997b9fe6f80279c19f54b4a654e496a2a9fe2dfbed7b8ee403a34bbf76dd2627c3cfdf4785a0372d0c8c02d79943b9226f31df47af488c4f8ccdbf2ab5f";
   res.type("text/plain").send(key.trim());
 });
 
